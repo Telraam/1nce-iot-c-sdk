@@ -109,7 +109,7 @@ static int _get_psk( char * packet,
             strcpy( nceKey->Psk, p );
         }
 
-        NceOSLogInfo( "DTLS Credentials Recieved.\n" );
+        NceOSLogInfo( "DTLS Credentials Received.\n" );
         return NCE_SDK_SUCCESS;
     }
 }
