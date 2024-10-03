@@ -40,11 +40,13 @@
 #endif /* ifdef  __ZEPHYR__ */
 
 #include "nce_iot_c_sdk.h"
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdint.h>
-#include <string.h>
 #include "log_interface.h"
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <udp_interface_zephyr.h>
+#include <zephyr/net/socket.h> //for testing only, remove LUC
 
 #ifdef __ZEPHYR__
 LOG_MODULE_REGISTER( NCE_SDK, CONFIG_NCE_SDK_LOG_LEVEL );
@@ -206,11 +208,31 @@ static int _os_coap_onboard( os_network_ops_t * osNetwork,
     memset( pBuffer, '\0', bufferSize * sizeof( char ) );
     sprintf( pBuffer, "%.2s%.2s%.2s%s%.1sbootstrap", coap_header, message_id_str, uri_host_option, NceOnboard.host, uri_path_option );
     NceOSLogInfo( "Send Device Authenticator request.\n" );
+    //for testing only
+    /* Set socket timeouts */
+    struct timeval timeout;
+    static int counter = 1;
+
+    if (counter < 6)
+    {
+        timeout.tv_sec  = 0;
+        timeout.tv_usec = 100;
+        counter++;
+    } else {
+        timeout.tv_sec  = CONFIG_NCE_SDK_RECEIVE_TIMEOUT_SECS;
+        timeout.tv_usec = 0;
+    }
+    int err = zsock_setsockopt(osNetwork->os_socket->os_socket, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+    if (err < 0) {
+        NceOSLogError("Failed to set receive timeout: %d\n", err);
+        return err;
+    }
+    //end testing
     status = osNetwork->nce_os_udp_send( osNetwork->os_socket, pBuffer, strlen( pBuffer ) );
 
     if( status < 0 )
     {
-        NceOSLogError( "Failed to send Device Authenticator request.\n" );
+        NceOSLogError( "Failed to send Device Authenticator request, status %d\n", status );
         status = NCE_SDK_SEND_ERROR;
     }
     else
@@ -220,7 +242,7 @@ static int _os_coap_onboard( os_network_ops_t * osNetwork,
 
         if( status < 0 )
         {
-            NceOSLogError( "Failed to receive Device credential.\n" );
+            NceOSLogError( "Failed to receive Device credential, status %d\n", status);
             status = NCE_SDK_RECEIVE_ERROR;
         }
     }
@@ -264,12 +286,17 @@ int os_auth( os_network_ops_t * osNetwork,
         }
     }
 
-    status = osNetwork->nce_os_udp_disconnect( osNetwork->os_socket );
+    int temp_status = osNetwork->nce_os_udp_disconnect( osNetwork->os_socket );
 
-    if( status < 0 )
+    if( temp_status < 0 )
     {
         NceOSLogError( "Failed to close socket.\n" );
-        return status;
+        //if everything was successful, _get_psk should have returned NCE_SDK_SUCCESS
+        //only then will we return the error code of the disconnect (if there is one)
+        if (status == NCE_SDK_SUCCESS)
+        {
+            status = temp_status;
+        }
     }
 
     return status;
