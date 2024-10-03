@@ -45,12 +45,6 @@ int nce_os_udp_connect( OSNetwork_t osnetwork,
         NceOSLogError("Failed to set receive timeout: %d\n", err);
         return err;
     }
-    timeout.tv_sec  = CONFIG_NCE_SDK_SEND_TIMEOUT_SECS;
-    err = zsock_setsockopt(socket, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
-    if (err < 0) {
-        NceOSLogError("Failed to set send timeout: %d\n", err);
-        return err;
-    }
 
     /* Set SO_REUSEADDR option */
     const int reuse = 1;
