@@ -28,7 +28,6 @@ int nce_os_udp_connect( OSNetwork_t osnetwork,
 {
     int socket = zsock_socket( AF_INET, SOCK_DGRAM,
                                IPPROTO_UDP );
-    int err;
     struct zsock_addrinfo * addr;
     struct zsock_addrinfo hints =
     {
@@ -36,10 +35,33 @@ int nce_os_udp_connect( OSNetwork_t osnetwork,
         .ai_socktype = SOCK_DGRAM
     };
 
-    err = zsock_getaddrinfo ( nce_oboarding.host,
-                              NULL, &hints, &addr );
+    /* Set socket timeouts */
+    struct timeval timeout;
+    timeout.tv_sec  = CONFIG_NCE_SDK_RECEIVE_TIMEOUT_SECS;
+    timeout.tv_usec = 0;
 
-    NceOSLogDebug( "getaddrinfo status: %d\n", err );
+    int err = zsock_setsockopt(socket, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+    if (err < 0) {
+        NceOSLogError("Failed to set receive timeout: %d\n", err);
+        return err;
+    }
+
+    /* Set SO_REUSEADDR option */
+    const int reuse = 1;
+    err = zsock_setsockopt(socket, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
+    if (err < 0) {
+        NceOSLogError("Failed to set reuse addr: %d\n", err);
+        return err;
+    }
+
+
+    err = zsock_getaddrinfo( nce_oboarding.host,
+                       NULL, &hints, &addr );
+
+    if (err < 0) {
+        NceOSLogError("Failed to get addr info: %d\n", err);
+        return err;
+    }
 
     osnetwork->os_socket = socket;
 

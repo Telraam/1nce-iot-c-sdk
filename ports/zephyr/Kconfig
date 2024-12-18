@@ -34,7 +34,11 @@ config NCE_SDK_ATTEMPTS
 config NCE_SDK_MAX_STRING_SIZE
 	int "Max string size in the payload before conversion"
 	default 50
-	
+
+config NCE_SDK_RECEIVE_TIMEOUT_SECS
+    int "Max number of seconds to wait for a response"
+    default 60
+
 
 module = NCE_SDK
 module-str = NCE_SDK
